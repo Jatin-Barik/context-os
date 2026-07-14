@@ -1,4 +1,6 @@
+import { Info, Sparkles } from 'lucide-react';
 import { PageShell } from '@/components/layout/PageShell';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { GlassCard } from '@/components/ui/GlassCard';
 
 export function AboutPage() {
@@ -17,6 +19,9 @@ export function AboutPage() {
           <div className="text-sm font-medium text-white">Roadmap</div>
           <p className="mt-2 text-sm leading-6 text-slate-400">Add OCR, vision, embeddings, memory search, and app integrations in the next phases.</p>
         </GlassCard>
+      </div>
+      <div className="mt-5">
+        <EmptyState title="Milestone 1 delivered" description="The shell now feels like a premium desktop application with a shared layout, polished navigation, dashboard widgets, and responsive empty states." icon={<Sparkles className="h-5 w-5" />} />
       </div>
     </PageShell>
   );

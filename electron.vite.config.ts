@@ -26,7 +26,7 @@ export default defineConfig({
     }
   },
   renderer: {
-    root: 'src/renderer',
+    root: resolve(root, 'src/renderer'),
     plugins: [react()],
     resolve: {
       alias: {
@@ -37,7 +37,7 @@ export default defineConfig({
       }
     },
     build: {
-      outDir: '../../dist/renderer',
+      outDir: resolve(root, 'dist/renderer'),
       emptyOutDir: true
     }
   }

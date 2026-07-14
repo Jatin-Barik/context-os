@@ -1,6 +1,8 @@
 import { motion } from 'framer-motion';
-import { Activity, History, LayoutGrid, Mail, MemoryStick, Settings, Sparkles, SquareStack, BookOpen } from 'lucide-react';
+import { Activity, ArrowRight, ChevronLeft, ChevronRight, History, LayoutGrid, Mail, MemoryStick, PanelRight, Settings, Sparkles, SquareStack, BookOpen, Cpu, ShieldCheck } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import { GlassCard } from '@/components/ui/GlassCard';
+import { SidebarItem } from '@/components/ui/SidebarItem';
 import { useShellStore } from '@/store/shellStore';
 import { HomePage } from '@/pages/HomePage';
 import { HistoryPage } from '@/pages/HistoryPage';
@@ -37,49 +39,63 @@ export function ShellLayout() {
   const openPalette = useShellStore((state) => state.openPalette);
   const latestAction = useShellStore((state) => state.generatedActions[0] ?? null);
   const latestContext = useShellStore((state) => state.recentContexts[0] ?? null);
+  const [collapsed, setCollapsed] = useState(false);
 
   const ActivePage = pageMap[activePage];
+  const statusSummary = useMemo(() => {
+    if (latestContext) {
+      return { title: latestContext.appName, detail: latestContext.windowTitle };
+    }
+
+    return { title: 'Ready', detail: 'No local capture yet. The shell is waiting for context.' };
+  }, [latestContext]);
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-[1680px] gap-6 px-5 py-5 lg:px-8">
-      <aside className="hidden w-72 shrink-0 lg:flex lg:flex-col">
-        <GlassCard className="sticky top-5 flex h-[calc(100vh-2.5rem)] flex-col overflow-hidden p-4">
-          <div className="border-b border-white/10 pb-4">
-            <p className="text-xs uppercase tracking-[0.3em] text-cyan-300/70">ContextOS</p>
-            <h1 className="mt-2 font-display text-2xl font-semibold text-white">The AI operating layer</h1>
-            <p className="mt-2 text-sm leading-6 text-slate-400">Understands what is on screen and keeps sensitive processing local.</p>
+    <div className="mx-auto flex min-h-screen max-w-[1680px] gap-6 px-4 py-4 lg:px-6">
+      <aside className={`hidden shrink-0 lg:flex lg:flex-col ${collapsed ? 'w-24' : 'w-72'}`}>
+        <GlassCard className="sticky top-4 flex h-[calc(100vh-2rem)] flex-col overflow-hidden p-3">
+          <div className="flex items-center justify-between border-b border-white/10 pb-4">
+            <div className="min-w-0">
+              <p className="text-[10px] uppercase tracking-[0.3em] text-cyan-300/70">ContextOS</p>
+              {!collapsed ? <h1 className="mt-2 text-lg font-semibold text-white">AI operating layer</h1> : null}
+            </div>
+            <button
+              type="button"
+              className="rounded-2xl border border-white/10 bg-white/5 p-2 text-slate-400 transition hover:text-white"
+              onClick={() => setCollapsed((previous) => !previous)}
+              aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            >
+              {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+            </button>
           </div>
 
-          <nav className="mt-4 space-y-1">
+          <nav className="mt-4 space-y-1.5">
             {navItems.map((item) => {
               const Icon = item.icon;
               const active = activePage === item.id;
               return (
-                <motion.button
+                <SidebarItem
                   key={item.id}
-                  whileHover={{ x: 4 }}
-                  whileTap={{ scale: 0.98 }}
-                  className={`flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left transition ${
-                    active ? 'bg-cyan-400/12 text-white' : 'text-slate-300 hover:bg-white/5'
-                  }`}
+                  label={item.label}
+                  icon={Icon}
+                  active={active}
+                  collapsed={collapsed}
                   onClick={() => setActivePage(item.id)}
-                >
-                  <Icon className="h-4 w-4" />
-                  <span className="text-sm font-medium">{item.label}</span>
-                </motion.button>
+                />
               );
             })}
           </nav>
 
           <div className="mt-auto space-y-3 border-t border-white/10 pt-4">
             <button
+              type="button"
               className="flex w-full items-center justify-center gap-2 rounded-2xl bg-cyan-400 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300"
               onClick={openPalette}
             >
               <Activity className="h-4 w-4" />
-              Open palette
+              {!collapsed ? 'Open palette' : null}
             </button>
-            <p className="text-xs leading-5 text-slate-500">Shortcut: Ctrl + Space</p>
+            {!collapsed ? <p className="text-xs leading-5 text-slate-500">Shortcut: Ctrl + Space</p> : null}
           </div>
         </GlassCard>
       </aside>
@@ -95,19 +111,22 @@ export function ShellLayout() {
 
         <div className="space-y-6">
           <GlassCard className="p-5">
-            <p className="text-xs uppercase tracking-[0.24em] text-cyan-300/70">Context snapshot</p>
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-[11px] uppercase tracking-[0.24em] text-cyan-300/70">Context snapshot</p>
+              <PanelRight className="h-4 w-4 text-slate-500" />
+            </div>
             <div className="mt-4 space-y-3 text-sm text-slate-300">
               <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                <div className="text-xs uppercase tracking-[0.2em] text-slate-500">Current app</div>
+                <div className="text-[11px] uppercase tracking-[0.2em] text-slate-500">Current app</div>
                 <div className="mt-2 text-base font-medium text-white">{latestContext?.appName ?? 'No active capture yet'}</div>
                 <div className="mt-1 text-slate-400">{latestContext?.windowTitle ?? 'Capture screen data to populate this panel.'}</div>
               </div>
               <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                <div className="text-xs uppercase tracking-[0.2em] text-slate-500">Selected text</div>
+                <div className="text-[11px] uppercase tracking-[0.2em] text-slate-500">Selected text</div>
                 <div className="mt-2 text-slate-300">{latestContext?.selectedText || 'Nothing selected yet.'}</div>
               </div>
               <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                <div className="text-xs uppercase tracking-[0.2em] text-slate-500">Clipboard</div>
+                <div className="text-[11px] uppercase tracking-[0.2em] text-slate-500">Clipboard</div>
                 <div className="mt-2 text-slate-300">{latestContext?.clipboardText || 'Clipboard not captured.'}</div>
               </div>
             </div>
@@ -115,7 +134,7 @@ export function ShellLayout() {
 
           <GlassCard className="p-5">
             <div className="flex items-center justify-between">
-              <p className="text-xs uppercase tracking-[0.24em] text-cyan-300/70">Recent action</p>
+              <p className="text-[11px] uppercase tracking-[0.24em] text-cyan-300/70">Recent action</p>
               <Mail className="h-4 w-4 text-slate-500" />
             </div>
             {latestAction ? (
@@ -136,6 +155,30 @@ export function ShellLayout() {
           </GlassCard>
         </div>
       </main>
+
+      <div className="fixed inset-x-0 bottom-0 z-20 flex justify-center px-4 pb-3">
+        <GlassCard className="flex w-full max-w-5xl items-center justify-between gap-3 rounded-full border border-white/10 bg-black/25 px-4 py-3 shadow-[0_16px_70px_rgba(2,6,23,0.45)] backdrop-blur-2xl">
+          <div className="flex items-center gap-3">
+            <div className="rounded-full border border-emerald-400/20 bg-emerald-400/10 p-2 text-emerald-200">
+              <ShieldCheck className="h-4 w-4" />
+            </div>
+            <div>
+              <div className="text-[11px] uppercase tracking-[0.24em] text-slate-500">Status</div>
+              <div className="text-sm font-medium text-white">{statusSummary.title}</div>
+            </div>
+          </div>
+          <div className="hidden items-center gap-4 text-sm text-slate-400 md:flex">
+            <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5">
+              <Cpu className="h-3.5 w-3.5" />
+              Local inference ready
+            </span>
+            <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5">
+              <ArrowRight className="h-3.5 w-3.5" />
+              {statusSummary.detail}
+            </span>
+          </div>
+        </GlassCard>
+      </div>
     </div>
   );
 }

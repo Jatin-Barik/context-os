@@ -6,6 +6,9 @@ const bridge: ContextosBridge = {
   getRuntimeStatus: async () => ipcRenderer.invoke(appBridgeChannels.runtimeStatus),
   readClipboard: async () => ipcRenderer.invoke(appBridgeChannels.readClipboard),
   openExternal: async (url: string) => ipcRenderer.invoke(appBridgeChannels.openExternal, url),
+  getDisplays: async () => ipcRenderer.invoke(appBridgeChannels.getDisplays),
+  captureScreen: async (options) => ipcRenderer.invoke(appBridgeChannels.captureScreen, options),
+  captureOcr: async (dataUrl: string) => ipcRenderer.invoke(appBridgeChannels.captureOcr, dataUrl),
   onPaletteOpen: (listener) => {
     const handler = (): void => listener();
     ipcRenderer.on('contextos:palette:open', handler);

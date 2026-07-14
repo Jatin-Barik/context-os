@@ -2,20 +2,17 @@ import type { AppInfo } from '@shared/bridge';
 import type { ContextSnapshot } from '@/store/shellStore';
 
 export type IntentCommandId =
-  | 'explain-this'
-  | 'summarize'
+  | 'explain-screen'
+  | 'summarize-screen'
   | 'rewrite'
   | 'translate'
-  | 'fix-error'
+  | 'explain-error'
   | 'generate-tests'
-  | 'explain-formula'
   | 'extract-table'
-  | 'create-todos'
-  | 'reply-professionally'
-  | 'generate-docs'
-  | 'explain-image'
-  | 'convert-markdown'
-  | 'convert-json';
+  | 'generate-notes'
+  | 'search-history'
+  | 'settings'
+  | 'quit';
 
 export interface CommandExecutionContext {
   appInfo: AppInfo | null;
@@ -35,31 +32,32 @@ export interface IntentCommand {
   description: string;
   aliases: string[];
   category: string;
+  shortcut: string;
   run: (context: CommandExecutionContext) => CommandResult;
 }
 
 const COMMANDS: IntentCommand[] = [
   {
-    id: 'explain-this',
-    title: 'Explain this',
+    id: 'explain-screen',
+    title: 'Explain Screen',
     description: 'Break down the visible screen content into a concise explanation.',
-    aliases: ['explain', 'what is this', 'understand'],
+    aliases: ['explain', 'screen', 'understand'],
     category: 'Understanding',
+    shortcut: '⌘/Ctrl + 1',
     run: ({ latestContext }) => ({
       title: 'Explained current screen',
       summary: `Mapped the current screen context for ${latestContext?.appName ?? 'the active app'}.`,
-      detail:
-        latestContext?.windowTitle ??
-        'No live window capture yet. Once screen understanding is connected, this command will summarize the visible context.',
+      detail: latestContext?.windowTitle ?? 'No live window capture yet. Once screen capture is connected, this command will summarize the visible context.',
       tags: ['screen', 'context']
     })
   },
   {
-    id: 'summarize',
-    title: 'Summarize',
+    id: 'summarize-screen',
+    title: 'Summarize Screen',
     description: 'Condense the active content into a short, readable summary.',
     aliases: ['summary', 'brief', 'compress'],
     category: 'Writing',
+    shortcut: '⌘/Ctrl + 2',
     run: ({ latestContext }) => ({
       title: 'Prepared summary',
       summary: 'Created a condensed summary draft from the current context.',
@@ -68,24 +66,12 @@ const COMMANDS: IntentCommand[] = [
     })
   },
   {
-    id: 'rewrite',
-    title: 'Rewrite professionally',
-    description: 'Rewrite the selected content into a crisp, professional tone.',
-    aliases: ['rewrite', 'professional', 'polish'],
-    category: 'Writing',
-    run: ({ latestContext }) => ({
-      title: 'Rewrite draft ready',
-      summary: 'Drafted a more professional version of the current text.',
-      detail: latestContext?.selectedText || 'Select text in any supported app to rewrite it.',
-      tags: ['writing', 'tone']
-    })
-  },
-  {
     id: 'translate',
     title: 'Translate',
     description: 'Translate the visible text into another language.',
     aliases: ['language', 'localize'],
     category: 'Writing',
+    shortcut: '⌘/Ctrl + 3',
     run: ({ latestContext }) => ({
       title: 'Translation draft ready',
       summary: 'Prepared a translation flow for the current text.',
@@ -94,11 +80,54 @@ const COMMANDS: IntentCommand[] = [
     })
   },
   {
-    id: 'fix-error',
-    title: 'Explain error',
+    id: 'rewrite',
+    title: 'Rewrite',
+    description: 'Rewrite the selected content into a crisp, professional tone.',
+    aliases: ['rewrite', 'professional', 'polish'],
+    category: 'Writing',
+    shortcut: '⌘/Ctrl + 4',
+    run: ({ latestContext }) => ({
+      title: 'Rewrite draft ready',
+      summary: 'Drafted a more professional version of the current text.',
+      detail: latestContext?.selectedText || 'Select text in any supported app to rewrite it.',
+      tags: ['writing', 'tone']
+    })
+  },
+  {
+    id: 'generate-notes',
+    title: 'Generate Notes',
+    description: 'Turn the current context into structured notes.',
+    aliases: ['notes', 'summary', 'notes'],
+    category: 'Planning',
+    shortcut: '⌘/Ctrl + 5',
+    run: ({ latestContext }) => ({
+      title: 'Notes draft ready',
+      summary: 'Prepared a structured notes draft from the active context.',
+      detail: latestContext?.windowTitle || 'Capture a surface to generate notes from the current context.',
+      tags: ['notes', 'planning']
+    })
+  },
+  {
+    id: 'extract-table',
+    title: 'Extract Table',
+    description: 'Turn a visible table into structured data.',
+    aliases: ['table', 'json', 'csv'],
+    category: 'Extraction',
+    shortcut: '⌘/Ctrl + 6',
+    run: ({ latestContext }) => ({
+      title: 'Table extraction staged',
+      summary: 'Prepared structured extraction for the visible table.',
+      detail: latestContext?.currentTableSummary || 'Once table OCR is wired in, this will emit rows and columns as structured data.',
+      tags: ['table', 'structured-data']
+    })
+  },
+  {
+    id: 'explain-error',
+    title: 'Explain Error',
     description: 'Analyze the current error message and suggest a fix path.',
     aliases: ['debug', 'stack trace', 'error'],
     category: 'Debugging',
+    shortcut: '⌘/Ctrl + 7',
     run: ({ latestContext }) => ({
       title: 'Error analysis staged',
       summary: 'Interpreted the latest error context and prepared a debugging plan.',
@@ -108,10 +137,11 @@ const COMMANDS: IntentCommand[] = [
   },
   {
     id: 'generate-tests',
-    title: 'Generate tests',
+    title: 'Generate Tests',
     description: 'Create a test plan for the current code or behavior.',
     aliases: ['tests', 'coverage'],
     category: 'Engineering',
+    shortcut: '⌘/Ctrl + 8',
     run: ({ latestContext }) => ({
       title: 'Test plan drafted',
       summary: 'Outlined regression checks and test cases for the current context.',
@@ -120,107 +150,45 @@ const COMMANDS: IntentCommand[] = [
     })
   },
   {
-    id: 'explain-formula',
-    title: 'Explain formula',
-    description: 'Break down a spreadsheet formula into plain language.',
-    aliases: ['formula', 'excel', 'sheet'],
-    category: 'Spreadsheet',
+    id: 'search-history',
+    title: 'Search History',
+    description: 'Jump to the recent command history view.',
+    aliases: ['history', 'recent'],
+    category: 'Navigation',
+    shortcut: '⌘/Ctrl + 9',
     run: ({ latestContext }) => ({
-      title: 'Formula explanation ready',
-      summary: 'Prepared a line-by-line explanation for the current formula.',
-      detail: latestContext?.currentTableSummary || 'Connect spreadsheet context to inspect formulas directly.',
-      tags: ['excel', 'formula']
+      title: 'History view opened',
+      summary: 'Opened the history view for recent commands and prompts.',
+      detail: latestContext?.windowTitle || 'Review recent commands from the shell history.',
+      tags: ['history', 'navigation']
     })
   },
   {
-    id: 'extract-table',
-    title: 'Extract table',
-    description: 'Turn a visible table into structured data.',
-    aliases: ['table', 'json', 'csv'],
-    category: 'Extraction',
+    id: 'settings',
+    title: 'Settings',
+    description: 'Open the settings workspace for privacy and controls.',
+    aliases: ['preferences', 'privacy', 'controls'],
+    category: 'Navigation',
+    shortcut: '⌘/Ctrl + ,',
     run: ({ latestContext }) => ({
-      title: 'Table extraction staged',
-      summary: 'Prepared structured extraction for the visible table.',
-      detail: latestContext?.currentTableSummary || 'Once table OCR is wired in, this will emit rows and columns as structured data.',
-      tags: ['table', 'structured-data']
+      title: 'Settings opened',
+      summary: 'Opened the settings area for privacy and local controls.',
+      detail: latestContext?.appName || 'Open settings from the shared shell navigation.',
+      tags: ['settings', 'privacy']
     })
   },
   {
-    id: 'create-todos',
-    title: 'Create TODOs',
-    description: 'Generate an action list from the current context.',
-    aliases: ['todo', 'tasks', 'next steps'],
-    category: 'Planning',
-    run: ({ latestContext }) => ({
-      title: 'Action items drafted',
-      summary: 'Produced a concise task list from the current context.',
-      detail: latestContext?.windowTitle || 'Task extraction works best once screen capture is connected to the active window.',
-      tags: ['todo', 'planning']
-    })
-  },
-  {
-    id: 'reply-professionally',
-    title: 'Reply professionally',
-    description: 'Draft a professional reply for email or chat.',
-    aliases: ['reply', 'email', 'message'],
-    category: 'Communication',
-    run: ({ latestContext }) => ({
-      title: 'Reply drafted',
-      summary: 'Prepared a professional response from the current message context.',
-      detail: latestContext?.clipboardText || 'Capture a message thread to draft a reply from the selected text.',
-      tags: ['email', 'communication']
-    })
-  },
-  {
-    id: 'generate-docs',
-    title: 'Generate documentation',
-    description: 'Turn code or behavior into documentation notes.',
-    aliases: ['docs', 'doc', 'document'],
-    category: 'Engineering',
-    run: ({ latestContext }) => ({
-      title: 'Documentation draft ready',
-      summary: 'Outlined the documentation structure from the current context.',
-      detail: latestContext?.currentFileName || 'Hook this command to the active code file for targeted docs generation.',
-      tags: ['docs', 'engineering']
-    })
-  },
-  {
-    id: 'explain-image',
-    title: 'Explain image',
-    description: 'Describe the visible image or screenshot in plain language.',
-    aliases: ['image', 'vision', 'screenshot'],
-    category: 'Vision',
-    run: ({ latestContext }) => ({
-      title: 'Image explanation staged',
-      summary: 'Prepared a vision prompt for the active image.',
-      detail: latestContext?.currentImageSummary || 'Connect a local vision model to analyze visible imagery.',
-      tags: ['vision', 'image']
-    })
-  },
-  {
-    id: 'convert-markdown',
-    title: 'Convert to markdown',
-    description: 'Transform selected content into clean markdown.',
-    aliases: ['markdown', 'md'],
-    category: 'Conversion',
-    run: ({ latestContext }) => ({
-      title: 'Markdown draft ready',
-      summary: 'Converted the current content into a markdown-shaped draft.',
-      detail: latestContext?.selectedText || 'Select text to convert it into markdown formatting.',
-      tags: ['markdown', 'conversion']
-    })
-  },
-  {
-    id: 'convert-json',
-    title: 'Convert to JSON',
-    description: 'Normalize structured content into JSON output.',
-    aliases: ['json', 'serialize'],
-    category: 'Conversion',
-    run: ({ latestContext }) => ({
-      title: 'JSON draft ready',
-      summary: 'Prepared a JSON-shaped output plan from the current context.',
-      detail: latestContext?.currentTableSummary || 'Use table extraction or selected text as the source for JSON conversion.',
-      tags: ['json', 'structured-data']
+    id: 'quit',
+    title: 'Quit ContextOS',
+    description: 'Exit the application gracefully.',
+    aliases: ['exit', 'quit app'],
+    category: 'System',
+    shortcut: '⌘/Ctrl + Q',
+    run: () => ({
+      title: 'ContextOS will close',
+      summary: 'The app is prepared to exit gracefully.',
+      detail: 'No local AI or desktop capture task is running.',
+      tags: ['quit', 'system']
     })
   }
 ];
@@ -233,13 +201,41 @@ export function searchCommands(query: string): IntentCommand[] {
   const normalized = query.trim().toLowerCase();
 
   if (!normalized) {
-    return COMMANDS;
+    return COMMANDS.slice(0, 8);
   }
+
+  const terms = normalized.split(/\s+/).filter(Boolean);
 
   return COMMANDS.filter((command) => {
     const searchable = [command.title, command.description, command.category, ...command.aliases].join(' ').toLowerCase();
-    return searchable.includes(normalized);
+    const haystack = `${command.title} ${command.description} ${command.category} ${command.aliases.join(' ')}`.toLowerCase();
+
+    return terms.every((term) => haystack.includes(term)) || fuzzyMatch(terms, haystack);
+  }).sort((left, right) => {
+    const leftScore = scoreCommand(left, normalized);
+    const rightScore = scoreCommand(right, normalized);
+    return rightScore - leftScore;
   });
+}
+
+function fuzzyMatch(terms: string[], haystack: string): boolean {
+  return terms.every((term) => haystack.includes(term.slice(0, 2)) || haystack.includes(term));
+}
+
+function scoreCommand(command: IntentCommand, query: string): number {
+  const haystack = [command.title, command.description, command.category, ...command.aliases].join(' ').toLowerCase();
+
+  if (haystack.includes(query)) {
+    return 20;
+  }
+
+  const queryTerms = query.split(/\s+/).filter(Boolean);
+  return queryTerms.reduce((score, term) => {
+    if (haystack.includes(term)) {
+      return score + 4;
+    }
+    return score + (haystack.includes(term.slice(0, 2)) ? 2 : 0);
+  }, 0);
 }
 
 export function getCommandById(commandId: IntentCommandId): IntentCommand {

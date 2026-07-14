@@ -1,0 +1,33 @@
+{
+  "text": "ContextOS capture preview\nScreen capture and OCR are available locally for inspection.\nUse the panel below to review extracted text blocks and confidence values.",
+  "blocks": [
+    {
+      "text": "ContextOS capture preview",
+      "confidence": 0.97,
+      "x": 88,
+      "y": 120,
+      "width": 260,
+      "height": 34
+    },
+    {
+      "text": "Screen capture and OCR are available locally for inspection.",
+      "confidence": 0.94,
+      "x": 88,
+      "y": 156,
+      "width": 440,
+      "height": 28
+    },
+    {
+      "text": "Use the panel below to review extracted text blocks and confidence values.",
+      "confidence": 0.91,
+      "x": 88,
+      "y": 192,
+      "width": 510,
+      "height": 28
+    }
+  ],
+  "language": "en",
+  "confidence": 0.95,
+  "processingTimeMs": 0,
+  "source": "local-stub"
+}

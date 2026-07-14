@@ -16,13 +16,20 @@ export default function App() {
 
   useEffect(() => {
     window.contextos.getAppInfo().then(setAppInfo).catch(() => undefined);
-    const stopListening = window.contextos.onPaletteOpen(openPalette);
+    const stopListening = window.contextos.onPaletteOpen(() => {
+      if (paletteVisible) {
+        closePalette();
+      } else {
+        openPalette();
+      }
+    });
     return stopListening;
-  }, [openPalette, setAppInfo]);
+  }, [closePalette, openPalette, paletteVisible, setAppInfo]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent): void => {
       if (event.key === 'Escape') {
+        event.preventDefault();
         closePalette();
         closeNotifications();
       }

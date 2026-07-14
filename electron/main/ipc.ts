@@ -1,8 +1,10 @@
 import { app, BrowserWindow, clipboard, ipcMain, shell } from 'electron';
 import os from 'node:os';
 import { appBridgeChannels } from '../../src/shared/bridge';
+import { registerCaptureHandlers } from './services/captureService';
 
 export function registerMainIpc(window: BrowserWindow): void {
+  registerCaptureHandlers();
   ipcMain.handle(appBridgeChannels.appInfo, () => {
     return {
       name: 'ContextOS',
