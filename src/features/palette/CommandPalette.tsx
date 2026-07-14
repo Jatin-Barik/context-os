@@ -8,6 +8,7 @@ import { useCommandPaletteStore } from './commandPaletteStore';
 import { createCommandService } from './commandService';
 import { cn } from '@/lib/cn';
 import type { CaptureResult, DisplaySource, OcrResult } from '@shared/bridge';
+import { buildContext } from '@/services/context/contextBuilder';
 
 interface CommandPaletteProps {
   onClose: () => void;
@@ -34,6 +35,7 @@ export function CommandPalette({ onClose }: CommandPaletteProps) {
   const setSelectedIndex = useCommandPaletteStore((state) => state.setSelectedIndex);
   const resetSelection = useCommandPaletteStore((state) => state.resetSelection);
   const paletteService = useMemo(() => createCommandService(), []);
+  const recordContext = useShellStore((state) => state.recordContext);
   const [captureSources, setCaptureSources] = useState<DisplaySource[]>([]);
   const [selectedSourceId, setSelectedSourceId] = useState('');
   const [captureResult, setCaptureResult] = useState<CaptureResult | null>(null);
@@ -84,8 +86,44 @@ export function CommandPalette({ onClose }: CommandPaletteProps) {
     try {
       const nextCapture = await window.contextos.captureScreen({ sourceId: selectedSourceId || undefined });
       setCaptureResult(nextCapture);
+      const clipboardText = await window.contextos.readClipboard();
       const nextOcr = await window.contextos.captureOcr(nextCapture.dataUrl);
       setOcrResult(nextOcr);
+
+      const selectedSource = captureSources.find((source) => source.id === selectedSourceId);
+      const sourceLabel = selectedSource?.name ?? appInfo?.name ?? 'Current desktop';
+      const context = buildContext({
+        windowTitle: sourceLabel,
+        windowProcess: selectedSource?.isWindow ? sourceLabel : (appInfo?.name ?? 'desktop'),
+        ocrText: nextOcr.text,
+        ocrResult: nextOcr,
+        clipboardText,
+        selectedText: nextOcr.text,
+        displayName: selectedSource?.name ?? 'Primary Display',
+        resolution: `${nextCapture.width}x${nextCapture.height}`,
+        timestamp: nextCapture.capturedAt,
+        metadata: {
+          platform: appInfo?.platform ?? window.navigator.platform,
+          userAgent: window.navigator.userAgent,
+          captureSource: sourceLabel
+        }
+      });
+
+      recordContext({
+        id: crypto.randomUUID(),
+        appName: context.application.name,
+        windowTitle: context.windowTitle,
+        selectedText: context.selectedText.selection || nextOcr.text || '',
+        clipboardText: context.clipboard.text,
+        currentUrl: context.browser.available ? context.browser.url ?? '' : '',
+        currentFileName: context.windowProcess,
+        currentLanguage: context.ocr.language,
+        currentErrorMessage: context.ocr.containsError ? nextOcr.text : '',
+        currentTableSummary: context.ocr.containsTable ? 'Table detected' : '',
+        currentImageSummary: context.summary ?? nextOcr.text,
+        capturedAt: context.timestamp
+      });
+
       setCaptureStatus('ready');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Capture failed unexpectedly.';

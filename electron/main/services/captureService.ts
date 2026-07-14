@@ -47,8 +47,8 @@ export function registerCaptureHandlers(): void {
       throw new Error('A capture image is required for OCR processing.');
     }
 
-    const currentDir = dirname(fileURLToPath(import.meta.url));
-    const fallbackPath = join(currentDir, '../../../public/ocr-stub.json');
+    
+    const fallbackPath = join(process.cwd(), "public", "ocr-stub.json");
     const file = await readFile(fallbackPath, 'utf8');
     const stub = JSON.parse(file) as OcrResult;
     const startedAt = Date.now();

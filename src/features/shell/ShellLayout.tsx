@@ -12,6 +12,7 @@ import { ModelManagerPage } from '@/pages/ModelManagerPage';
 import { ExtensionsPage } from '@/pages/ExtensionsPage';
 import { AboutPage } from '@/pages/AboutPage';
 import { TopBar } from '@/components/layout/TopBar';
+import { ContextInspector } from './ContextInspector';
 
 const navItems = [
   { id: 'home', label: 'Home', icon: Sparkles },
@@ -44,7 +45,10 @@ export function ShellLayout() {
   const ActivePage = pageMap[activePage];
   const statusSummary = useMemo(() => {
     if (latestContext) {
-      return { title: latestContext.appName, detail: latestContext.windowTitle };
+      return {
+        title: latestContext.appName || 'Context captured',
+        detail: latestContext.currentImageSummary || latestContext.windowTitle || 'Screen context was captured successfully.'
+      };
     }
 
     return { title: 'Ready', detail: 'No local capture yet. The shell is waiting for context.' };
@@ -106,6 +110,17 @@ export function ShellLayout() {
 
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
             <ActivePage />
+            <ContextInspector input={{
+              windowTitle: latestContext?.windowTitle,
+              windowProcess: latestContext?.appName,
+              ocrText: latestContext?.currentImageSummary || latestContext?.selectedText,
+              clipboardText: latestContext?.clipboardText,
+              selectedText: latestContext?.selectedText,
+              displayName: 'Primary Display',
+              resolution: '1920x1080',
+              timestamp: latestContext?.capturedAt,
+              metadata: { source: 'shell', appName: latestContext?.appName }
+            }} />
           </motion.div>
         </div>
 
