@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { AppInfo } from '@shared/bridge';
 import type { LocalModelId } from '@/models/localModels';
+import type { AIExecutionMetrics, AIResponseFollowUp } from '@/services/ai/types';
 
 export type PageId = 'home' | 'history' | 'memory' | 'settings' | 'models' | 'extensions' | 'about';
 export type ThemeMode = 'midnight' | 'aurora';
@@ -29,6 +30,17 @@ export interface GeneratedAction {
   createdAt: string;
 }
 
+export interface AIExecutionState {
+  status: 'idle' | 'loading' | 'streaming' | 'completed' | 'cancelled' | 'error';
+  commandTitle: string;
+  prompt: string;
+  response: string;
+  formattedResponse: string;
+  followUps: AIResponseFollowUp[];
+  metrics: AIExecutionMetrics | null;
+  error: string;
+}
+
 export interface ContextSnapshot {
   id: string;
   appName: string;
@@ -38,6 +50,7 @@ export interface ContextSnapshot {
   currentUrl: string;
   currentFileName: string;
   currentLanguage: string;
+  currentIntent: string;
   currentErrorMessage: string;
   currentTableSummary: string;
   currentImageSummary: string;
@@ -56,6 +69,7 @@ interface ShellState {
   generatedActions: GeneratedAction[];
   recentContexts: ContextSnapshot[];
   notifications: NotificationItem[];
+  aiExecution: AIExecutionState;
   setAppInfo: (appInfo: AppInfo) => void;
   setActivePage: (page: PageId) => void;
   setThemeMode: (themeMode: ThemeMode) => void;
@@ -70,6 +84,12 @@ interface ShellState {
   recordPrompt: (prompt: PromptRecord) => void;
   recordGeneratedAction: (action: GeneratedAction) => void;
   recordContext: (context: ContextSnapshot) => void;
+  startAIExecution: (commandTitle: string, prompt: string) => void;
+  appendAIResponseChunk: (chunk: string) => void;
+  completeAIExecution: (formattedResponse: string, followUps: AIResponseFollowUp[], metrics: AIExecutionMetrics) => void;
+  cancelAIExecution: () => void;
+  failAIExecution: (message: string) => void;
+  clearAIExecution: () => void;
   clearLocalData: () => void;
 }
 
@@ -95,6 +115,17 @@ const defaultNotifications: NotificationItem[] = [
   }
 ];
 
+const defaultAIExecutionState: AIExecutionState = {
+  status: 'idle',
+  commandTitle: '',
+  prompt: '',
+  response: '',
+  formattedResponse: '',
+  followUps: [],
+  metrics: null,
+  error: ''
+};
+
 export const useShellStore = create<ShellState>()(
   persist(
     (set) => ({
@@ -109,6 +140,7 @@ export const useShellStore = create<ShellState>()(
       generatedActions: [],
       recentContexts: defaultContexts,
       notifications: defaultNotifications,
+      aiExecution: defaultAIExecutionState,
       setAppInfo: (appInfo) => set({ appInfo }),
       setActivePage: (activePage) => set({ activePage }),
       setThemeMode: (themeMode) => set({ themeMode }),
@@ -127,8 +159,53 @@ export const useShellStore = create<ShellState>()(
         set((state) => ({ generatedActions: [action, ...state.generatedActions].slice(0, 20) })),
       recordContext: (context) =>
         set((state) => ({ recentContexts: [context, ...state.recentContexts].slice(0, 20) })),
+      startAIExecution: (commandTitle, prompt) =>
+        set({
+          aiExecution: {
+            ...defaultAIExecutionState,
+            status: 'loading',
+            commandTitle,
+            prompt
+          }
+        }),
+      appendAIResponseChunk: (chunk) =>
+        set((state) => ({
+          aiExecution: {
+            ...state.aiExecution,
+            status: 'streaming',
+            response: `${state.aiExecution.response}${chunk}`
+          }
+        })),
+      completeAIExecution: (formattedResponse, followUps, metrics) =>
+        set((state) => ({
+          aiExecution: {
+            ...state.aiExecution,
+            status: 'completed',
+            response: formattedResponse,
+            formattedResponse,
+            followUps: [...followUps],
+            metrics,
+            error: ''
+          }
+        })),
+      cancelAIExecution: () =>
+        set((state) => ({
+          aiExecution: {
+            ...state.aiExecution,
+            status: 'cancelled'
+          }
+        })),
+      failAIExecution: (message) =>
+        set((state) => ({
+          aiExecution: {
+            ...state.aiExecution,
+            status: 'error',
+            error: message
+          }
+        })),
+      clearAIExecution: () => set({ aiExecution: defaultAIExecutionState }),
       clearLocalData: () =>
-        set({ recentPrompts: [], generatedActions: [], recentContexts: defaultContexts, searchQuery: '' })
+        set({ recentPrompts: [], generatedActions: [], recentContexts: defaultContexts, searchQuery: '', aiExecution: defaultAIExecutionState })
     }),
     {
       name: 'contextos-shell',

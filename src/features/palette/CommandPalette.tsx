@@ -2,13 +2,14 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowRight, Search, Sparkles, Clock3, Command, ScanLine, Camera } from 'lucide-react';
 import { GlassCard } from '@/components/ui/GlassCard';
-import { searchCommands } from './commandRegistry';
 import { useShellStore } from '@/store/shellStore';
 import { useCommandPaletteStore } from './commandPaletteStore';
 import { createCommandService } from './commandService';
 import { cn } from '@/lib/cn';
 import type { CaptureResult, DisplaySource, OcrResult } from '@shared/bridge';
-import { buildContext } from '@/services/context/contextBuilder';
+import { captureContext } from '@/services/context/contextCaptureService';
+import { CommandResponsePanel } from './CommandResponsePanel';
+import { useApplicationContext } from '@/integrations/core/useApplicationContext';
 
 interface CommandPaletteProps {
   onClose: () => void;
@@ -36,14 +37,49 @@ export function CommandPalette({ onClose }: CommandPaletteProps) {
   const resetSelection = useCommandPaletteStore((state) => state.resetSelection);
   const paletteService = useMemo(() => createCommandService(), []);
   const recordContext = useShellStore((state) => state.recordContext);
+  const aiExecution = useShellStore((state) => state.aiExecution);
   const [captureSources, setCaptureSources] = useState<DisplaySource[]>([]);
   const [selectedSourceId, setSelectedSourceId] = useState('');
   const [captureResult, setCaptureResult] = useState<CaptureResult | null>(null);
   const [ocrResult, setOcrResult] = useState<OcrResult | null>(null);
   const [captureStatus, setCaptureStatus] = useState<'idle' | 'capturing' | 'ready' | 'error'>('idle');
   const [captureError, setCaptureError] = useState<string | null>(null);
+  const { applicationContext } = useApplicationContext({
+    context: useShellStore((state) => state.recentContexts[0] ?? null),
+    appInfo
+  });
 
-  const commands = useMemo(() => searchCommands(query), [query]);
+  const commands = useMemo(() => {
+    if (!applicationContext) {
+      return [];
+    }
+
+    const normalized = query.trim().toLowerCase();
+    const baseCommands = [...applicationContext.supportedCommands];
+
+    if (!normalized) {
+      return baseCommands;
+    }
+
+    const terms = normalized.split(/\s+/).filter(Boolean);
+    return baseCommands.filter((command) => {
+      const haystack = [command.title, command.description, command.category, ...command.aliases].join(' ').toLowerCase();
+      return terms.every((term) => haystack.includes(term));
+    }).sort((left, right) => {
+      const leftScore = scoreCommand(left.title, left.description, left.category, left.aliases, normalized);
+      const rightScore = scoreCommand(right.title, right.description, right.category, right.aliases, normalized);
+      return rightScore - leftScore;
+    });
+  }, [applicationContext, query]);
+
+  function scoreCommand(title: string, description: string, category: string, aliases: readonly string[], queryText: string): number {
+    const haystack = [title, description, category, ...aliases].join(' ').toLowerCase();
+    if (haystack.includes(queryText)) {
+      return 20;
+    }
+
+    return queryText.split(/\s+/).filter(Boolean).reduce((score, term) => score + (haystack.includes(term) ? 4 : 0), 0);
+  }
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -84,44 +120,28 @@ export function CommandPalette({ onClose }: CommandPaletteProps) {
     setCaptureError(null);
 
     try {
-      const nextCapture = await window.contextos.captureScreen({ sourceId: selectedSourceId || undefined });
-      setCaptureResult(nextCapture);
-      const clipboardText = await window.contextos.readClipboard();
-      const nextOcr = await window.contextos.captureOcr(nextCapture.dataUrl);
-      setOcrResult(nextOcr);
-
-      const selectedSource = captureSources.find((source) => source.id === selectedSourceId);
-      const sourceLabel = selectedSource?.name ?? appInfo?.name ?? 'Current desktop';
-      const context = buildContext({
-        windowTitle: sourceLabel,
-        windowProcess: selectedSource?.isWindow ? sourceLabel : (appInfo?.name ?? 'desktop'),
-        ocrText: nextOcr.text,
-        ocrResult: nextOcr,
-        clipboardText,
-        selectedText: nextOcr.text,
-        displayName: selectedSource?.name ?? 'Primary Display',
-        resolution: `${nextCapture.width}x${nextCapture.height}`,
-        timestamp: nextCapture.capturedAt,
-        metadata: {
-          platform: appInfo?.platform ?? window.navigator.platform,
-          userAgent: window.navigator.userAgent,
-          captureSource: sourceLabel
-        }
+      const session = await captureContext({
+        appInfo,
+        sourceId: selectedSourceId || undefined
       });
+
+      setCaptureResult(session.capture);
+      setOcrResult(session.ocr);
 
       recordContext({
         id: crypto.randomUUID(),
-        appName: context.application.name,
-        windowTitle: context.windowTitle,
-        selectedText: context.selectedText.selection || nextOcr.text || '',
-        clipboardText: context.clipboard.text,
-        currentUrl: context.browser.available ? context.browser.url ?? '' : '',
-        currentFileName: context.windowProcess,
-        currentLanguage: context.ocr.language,
-        currentErrorMessage: context.ocr.containsError ? nextOcr.text : '',
-        currentTableSummary: context.ocr.containsTable ? 'Table detected' : '',
-        currentImageSummary: context.summary ?? nextOcr.text,
-        capturedAt: context.timestamp
+        appName: session.context.application.name,
+        windowTitle: session.context.windowTitle,
+        selectedText: session.context.selectedText.selection || session.ocr.text || '',
+        clipboardText: session.context.clipboard.text,
+        currentUrl: session.context.browser.available ? session.context.browser.url ?? '' : '',
+        currentFileName: session.context.windowProcess,
+        currentLanguage: session.context.ocr.language,
+        currentIntent: session.context.intent?.intent ?? 'Unknown',
+        currentErrorMessage: session.context.ocr.containsError ? session.ocr.text : '',
+        currentTableSummary: session.context.ocr.containsTable ? 'Table detected' : '',
+        currentImageSummary: session.context.summary ?? session.ocr.text,
+        capturedAt: session.context.timestamp
       });
 
       setCaptureStatus('ready');
@@ -153,8 +173,12 @@ export function CommandPalette({ onClose }: CommandPaletteProps) {
 
       if (event.key === 'Enter' && commands[selectedIndex]) {
         event.preventDefault();
-        paletteService.executeCommand(commands[selectedIndex].id);
-        onClose();
+        void (async () => {
+          const outcome = await paletteService.executeCommand(commands[selectedIndex].id);
+          if (!outcome.keepPaletteOpen) {
+            onClose();
+          }
+        })();
       }
     };
 
@@ -185,7 +209,13 @@ export function CommandPalette({ onClose }: CommandPaletteProps) {
             </div>
             <div className="flex-1">
               <p className="text-[11px] uppercase tracking-[0.25em] text-cyan-200/70">ContextOS</p>
-              <p className="text-sm text-slate-300">{appInfo ? `${appInfo.name} · ${appInfo.platform}` : 'Ready to analyze the current screen locally'}</p>
+              <p className="text-sm text-slate-300">
+                {applicationContext
+                  ? `${applicationContext.applicationName} · ${applicationContext.adapterName}`
+                  : appInfo
+                    ? `${appInfo.name} · ${appInfo.platform}`
+                    : 'Ready to analyze the current screen locally'}
+              </p>
             </div>
             <div className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] uppercase tracking-[0.24em] text-slate-400">
               Local only
@@ -198,7 +228,7 @@ export function CommandPalette({ onClose }: CommandPaletteProps) {
               ref={inputRef}
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Try: explain screen, summarize, rewrite, settings..."
+              placeholder="Try: explain screen, summarize, refactor, generate tests..."
               className="w-full border-0 bg-transparent text-sm outline-none placeholder:text-slate-500"
               aria-label="Search commands"
             />
@@ -220,8 +250,12 @@ export function CommandPalette({ onClose }: CommandPaletteProps) {
                         )}
                         onMouseEnter={() => setSelectedIndex(index)}
                         onClick={() => {
-                          paletteService.executeCommand(command.id);
-                          onClose();
+                          void (async () => {
+                            const outcome = await paletteService.executeCommand(command.id);
+                            if (!outcome.keepPaletteOpen) {
+                              onClose();
+                            }
+                          })();
                         }}
                       >
                         <div className={cn('mt-1 rounded-2xl border p-2', active ? 'border-cyan-400/20 bg-cyan-400/10 text-cyan-200' : 'border-white/10 bg-white/5 text-slate-400')}>
@@ -248,6 +282,19 @@ export function CommandPalette({ onClose }: CommandPaletteProps) {
             </div>
 
             <div className="space-y-4">
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
+                <div className="flex items-center justify-between gap-2 text-[11px] uppercase tracking-[0.24em] text-slate-500">
+                  <span>Active adapter</span>
+                  <span>{applicationContext?.adapterId ?? 'pending'}</span>
+                </div>
+                <div className="mt-2 text-sm text-slate-300">
+                  {applicationContext ? applicationContext.health.detail : 'Resolving the current application...'}
+                </div>
+                <div className="mt-2 text-xs uppercase tracking-[0.2em] text-slate-500">
+                  {applicationContext ? `${applicationContext.supportedCommands.length} commands available` : 'No adapter context yet'}
+                </div>
+              </div>
+
               <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
                 <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.24em] text-slate-500">
                   <Clock3 className="h-3.5 w-3.5" />
@@ -323,6 +370,19 @@ export function CommandPalette({ onClose }: CommandPaletteProps) {
                 </div>
               </div>
 
+              <CommandResponsePanel
+                execution={aiExecution}
+                onCancel={() => paletteService.cancelActiveExecution()}
+                onFollowUp={(followUpCommandId) => {
+                  void (async () => {
+                    const outcome = await paletteService.executeCommand(followUpCommandId);
+                    if (!outcome.keepPaletteOpen) {
+                      onClose();
+                    }
+                  })();
+                }}
+              />
+
               <div className="rounded-2xl border border-white/10 bg-cyan-400/8 p-3">
                 <div className="flex items-center justify-between gap-2 text-[11px] uppercase tracking-[0.24em] text-cyan-200/80">
                   <span>Keyboard</span>
@@ -345,7 +405,7 @@ export function CommandPalette({ onClose }: CommandPaletteProps) {
           <div className="flex items-center justify-between border-t border-white/10 px-5 py-3 text-sm text-slate-400">
             <span>Everything runs locally</span>
             <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5">
-              No AI responses yet
+              {aiExecution.status === 'streaming' || aiExecution.status === 'loading' ? 'Streaming response' : aiExecution.status === 'completed' ? 'Response ready' : 'No AI response yet'}
               <ArrowRight className="h-3.5 w-3.5" />
             </span>
           </div>

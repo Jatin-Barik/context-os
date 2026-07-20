@@ -4,6 +4,7 @@ import { NotificationsPopover } from '@/components/layout/NotificationsPopover';
 import { useRuntimeStatus } from '@/hooks/useRuntimeStatus';
 import { getLocalModel } from '@/models/localModels';
 import { useShellStore } from '@/store/shellStore';
+import { useApplicationContext } from '@/integrations/core/useApplicationContext';
 
 export function TopBar() {
   const searchQuery = useShellStore((state) => state.searchQuery);
@@ -13,7 +14,10 @@ export function TopBar() {
   const toggleThemeMode = useShellStore((state) => state.toggleThemeMode);
   const currentModelId = useShellStore((state) => state.currentModelId);
   const themeMode = useShellStore((state) => state.themeMode);
+  const appInfo = useShellStore((state) => state.appInfo);
+  const latestContext = useShellStore((state) => state.recentContexts[0] ?? null);
   const { runtimeStatus } = useRuntimeStatus();
+  const { applicationContext } = useApplicationContext({ context: latestContext, appInfo });
 
   const activeModel = useMemo(() => getLocalModel(currentModelId), [currentModelId]);
   const unreadCount = useShellStore((state) => state.notifications.length);
@@ -33,6 +37,15 @@ export function TopBar() {
         </div>
 
         <div className="flex items-center gap-3">
+          <div className="hidden min-w-[11rem] rounded-2xl border border-cyan-400/15 bg-cyan-400/10 px-4 py-3 text-left lg:block">
+            <div className="text-[11px] uppercase tracking-[0.2em] text-cyan-200/70">Active application</div>
+            <div className="mt-1 flex items-center gap-2 text-sm font-medium text-white">
+              <SquarePen className="h-4 w-4 text-cyan-200" />
+              {applicationContext?.applicationName ?? appInfo?.name ?? 'Resolving'}
+            </div>
+            <div className="mt-1 text-xs text-cyan-100/75">{applicationContext?.adapterName ?? appInfo?.platform ?? 'Adapter pending'}</div>
+          </div>
+
           <button
             className="inline-flex h-11 items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 text-sm font-medium text-slate-200 transition hover:bg-white/10"
             onClick={toggleNotifications}

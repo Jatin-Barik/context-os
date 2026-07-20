@@ -40,7 +40,7 @@ const COMMANDS: IntentCommand[] = [
   {
     id: 'explain-screen',
     title: 'Explain Screen',
-    description: 'Break down the visible screen content into a concise explanation.',
+    description: 'Capture the screen, extract OCR, build context, and generate a local explanation.',
     aliases: ['explain', 'screen', 'understand'],
     category: 'Understanding',
     shortcut: '⌘/Ctrl + 1',

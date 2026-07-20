@@ -13,6 +13,7 @@ import { ExtensionsPage } from '@/pages/ExtensionsPage';
 import { AboutPage } from '@/pages/AboutPage';
 import { TopBar } from '@/components/layout/TopBar';
 import { ContextInspector } from './ContextInspector';
+import { useApplicationContext } from '@/integrations/core/useApplicationContext';
 
 const navItems = [
   { id: 'home', label: 'Home', icon: Sparkles },
@@ -40,19 +41,21 @@ export function ShellLayout() {
   const openPalette = useShellStore((state) => state.openPalette);
   const latestAction = useShellStore((state) => state.generatedActions[0] ?? null);
   const latestContext = useShellStore((state) => state.recentContexts[0] ?? null);
+  const appInfo = useShellStore((state) => state.appInfo);
   const [collapsed, setCollapsed] = useState(false);
+  const { applicationContext } = useApplicationContext({ context: latestContext, appInfo });
 
   const ActivePage = pageMap[activePage];
   const statusSummary = useMemo(() => {
-    if (latestContext) {
+    if (applicationContext) {
       return {
-        title: latestContext.appName || 'Context captured',
-        detail: latestContext.currentImageSummary || latestContext.windowTitle || 'Screen context was captured successfully.'
+        title: applicationContext.applicationName || 'Context captured',
+        detail: applicationContext.health.detail || applicationContext.summary || 'Screen context was captured successfully.'
       };
     }
 
     return { title: 'Ready', detail: 'No local capture yet. The shell is waiting for context.' };
-  }, [latestContext]);
+  }, [applicationContext]);
 
   return (
     <div className="mx-auto flex min-h-screen max-w-[1680px] gap-6 px-4 py-4 lg:px-6">
@@ -110,17 +113,7 @@ export function ShellLayout() {
 
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
             <ActivePage />
-            <ContextInspector input={{
-              windowTitle: latestContext?.windowTitle,
-              windowProcess: latestContext?.appName,
-              ocrText: latestContext?.currentImageSummary || latestContext?.selectedText,
-              clipboardText: latestContext?.clipboardText,
-              selectedText: latestContext?.selectedText,
-              displayName: 'Primary Display',
-              resolution: '1920x1080',
-              timestamp: latestContext?.capturedAt,
-              metadata: { source: 'shell', appName: latestContext?.appName }
-            }} />
+            <ContextInspector input={latestContext} appInfo={appInfo} />
           </motion.div>
         </div>
 
@@ -133,16 +126,21 @@ export function ShellLayout() {
             <div className="mt-4 space-y-3 text-sm text-slate-300">
               <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
                 <div className="text-[11px] uppercase tracking-[0.2em] text-slate-500">Current app</div>
-                <div className="mt-2 text-base font-medium text-white">{latestContext?.appName ?? 'No active capture yet'}</div>
-                <div className="mt-1 text-slate-400">{latestContext?.windowTitle ?? 'Capture screen data to populate this panel.'}</div>
+                <div className="mt-2 text-base font-medium text-white">{applicationContext?.applicationName ?? latestContext?.appName ?? 'No active capture yet'}</div>
+                <div className="mt-1 text-slate-400">{applicationContext?.adapterName ?? latestContext?.windowTitle ?? 'Capture screen data to populate this panel.'}</div>
               </div>
               <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
                 <div className="text-[11px] uppercase tracking-[0.2em] text-slate-500">Selected text</div>
-                <div className="mt-2 text-slate-300">{latestContext?.selectedText || 'Nothing selected yet.'}</div>
+                <div className="mt-2 text-slate-300">{applicationContext?.selectedText || latestContext?.selectedText || 'Nothing selected yet.'}</div>
               </div>
               <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
                 <div className="text-[11px] uppercase tracking-[0.2em] text-slate-500">Clipboard</div>
-                <div className="mt-2 text-slate-300">{latestContext?.clipboardText || 'Clipboard not captured.'}</div>
+                <div className="mt-2 text-slate-300">{applicationContext?.clipboardText || latestContext?.clipboardText || 'Clipboard not captured.'}</div>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                <div className="text-[11px] uppercase tracking-[0.2em] text-slate-500">Active adapter</div>
+                <div className="mt-2 text-slate-300">{applicationContext?.adapterName || 'Resolving adapter...'}</div>
+                <div className="mt-1 text-xs uppercase tracking-[0.2em] text-slate-500">{applicationContext?.health.detail || 'Pending'}</div>
               </div>
             </div>
           </GlassCard>
