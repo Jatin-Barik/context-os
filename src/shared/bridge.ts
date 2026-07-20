@@ -53,9 +53,38 @@ export interface OcrBlock {
   height: number;
 }
 
+export interface OcrParagraph {
+  text: string;
+  confidence: number;
+  blockCount: number;
+}
+
+export interface OcrTableCell {
+  text: string;
+  row: number;
+  column: number;
+  confidence: number;
+}
+
+export interface OcrTable {
+  rowCount: number;
+  columnCount: number;
+  cells: OcrTableCell[];
+}
+
+export interface OcrLayout {
+  orientation: 'portrait' | 'landscape' | 'square';
+  blocks: OcrBlock[];
+  paragraphs: OcrParagraph[];
+  tables: OcrTable[];
+}
+
 export interface OcrResult {
   text: string;
   blocks: OcrBlock[];
+  paragraphs: OcrParagraph[];
+  tables: OcrTable[];
+  layout: OcrLayout;
   language: string;
   confidence: number;
   processingTimeMs: number;

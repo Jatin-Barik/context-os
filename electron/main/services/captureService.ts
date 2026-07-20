@@ -1,8 +1,6 @@
 import { desktopCapturer, ipcMain } from 'electron';
-import { readFile } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import type { CaptureResult, OcrResult } from '../../../src/shared/bridge';
+import { recognizeText } from './ocrService';
 
 export function registerCaptureHandlers(): void {
   ipcMain.handle('contextos:capture:get-displays', async () => {
@@ -47,16 +45,6 @@ export function registerCaptureHandlers(): void {
       throw new Error('A capture image is required for OCR processing.');
     }
 
-    
-    const fallbackPath = join(process.cwd(), "public", "ocr-stub.json");
-    const file = await readFile(fallbackPath, 'utf8');
-    const stub = JSON.parse(file) as OcrResult;
-    const startedAt = Date.now();
-
-    return {
-      ...stub,
-      processingTimeMs: Date.now() - startedAt,
-      source: 'local-stub'
-    } satisfies OcrResult;
+    return (await recognizeText(dataUrl)) as OcrResult;
   });
 }

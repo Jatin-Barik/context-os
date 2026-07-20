@@ -9,6 +9,7 @@ export default defineConfig({
     build: {
       outDir: 'dist/main',
       rollupOptions: {
+        external: ['tesseract.js'],
         input: {
           index: resolve(root, 'electron/main/index.ts')
         }
