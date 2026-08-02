@@ -7,7 +7,8 @@ import { GlassCard } from '@/components/ui/GlassCard';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { StatusCard } from '@/components/ui/StatusCard';
 import { ShortcutCard } from '@/components/ui/ShortcutCard';
-import { searchCommands } from '@/features/palette/commandRegistry';
+import { useApplicationContext } from '@/integrations/core/useApplicationContext';
+import { createCommandService } from '@/features/palette/commandService';
 import { cn } from '@/lib/cn';
 import type { RuntimeStatus } from '@shared/bridge';
 
@@ -21,9 +22,13 @@ export function DashboardOverview({ runtimeStatus }: DashboardOverviewProps) {
   const contexts = useShellStore((state) => state.recentContexts);
   const currentModelId = useShellStore((state) => state.currentModelId);
   const searchQuery = useShellStore((state) => state.searchQuery);
+  const appInfo = useShellStore((state) => state.appInfo);
+  const latestContext = useShellStore((state) => state.recentContexts[0] ?? null);
+  const { resolveCommands } = useApplicationContext({ context: latestContext, appInfo });
+  const commandService = useMemo(() => createCommandService(), []);
 
   const activeModel = useMemo(() => LOCAL_MODELS.find((model) => model.id === currentModelId) ?? LOCAL_MODELS[0], [currentModelId]);
-  const quickCommands = useMemo(() => searchCommands(searchQuery).slice(0, 6), [searchQuery]);
+  const quickCommands = useMemo(() => resolveCommands(searchQuery).slice(0, 4), [resolveCommands, searchQuery]);
   const activityItems = useMemo(
     () => [
       ...actions.slice(0, 2).map((action) => ({
@@ -80,7 +85,7 @@ export function DashboardOverview({ runtimeStatus }: DashboardOverviewProps) {
 
         <div className="space-y-4">
           <StatusCard title="AI Status" value="Local context ready" detail="The shell is prepared for screen understanding and local-first assistance." icon={<Sparkles className="h-4 w-4" />} accent="cyan" />
-          <StatusCard title="Quick Actions" value="4 shortcuts" detail="Use the palette to trigger explain, summarize, translate, or notes flows instantly." icon={<Zap className="h-4 w-4" />} accent="emerald" />
+          <StatusCard title="Quick Actions" value={`${quickCommands.length} commands`} detail="Use the same adapter-driven command source as the palette and AI runtime." icon={<Zap className="h-4 w-4" />} accent="emerald" />
         </div>
       </div>
 
@@ -88,10 +93,29 @@ export function DashboardOverview({ runtimeStatus }: DashboardOverviewProps) {
         <GlassCard className="p-5">
           <SectionHeader eyebrow="Quick actions" title="Launch common tasks" action={<Zap className="h-5 w-5 text-slate-400" />} />
           <div className="mt-4 grid gap-3 md:grid-cols-2">
-            <ShortcutCard title="Explain Screen" detail="Break down context in a focused summary." icon={<ScanSearch className="h-4 w-4" />} accent="cyan" />
-            <ShortcutCard title="Summarize" detail="Condense the current context into a short brief." icon={<Compass className="h-4 w-4" />} accent="emerald" />
-            <ShortcutCard title="Translate" detail="Convert selected text while preserving tone." icon={<ArrowRight className="h-4 w-4" />} accent="amber" />
-            <ShortcutCard title="Generate Notes" detail="Create structured notes from the active context." icon={<PenTool className="h-4 w-4" />} accent="cyan" />
+            {quickCommands.length > 0 ? (
+              quickCommands.map((command, index) => {
+                const icons = [<ScanSearch className="h-4 w-4" />, <Compass className="h-4 w-4" />, <ArrowRight className="h-4 w-4" />, <PenTool className="h-4 w-4" />];
+                const accents: Array<'cyan' | 'emerald' | 'amber' | 'violet'> = ['cyan', 'emerald', 'amber', 'cyan'];
+
+                return (
+                  <ShortcutCard
+                    key={command.id}
+                    title={command.title}
+                    detail={command.description}
+                    icon={icons[index] ?? <FolderOpen className="h-4 w-4" />}
+                    accent={accents[index] ?? 'violet'}
+                    onClick={() => {
+                      void commandService.executeCommand(command.id);
+                    }}
+                  />
+                );
+              })
+            ) : (
+              <div className="rounded-2xl border border-dashed border-white/10 p-8 text-sm text-slate-400 md:col-span-2">
+                No adapter commands are available yet.
+              </div>
+            )}
           </div>
         </GlassCard>
 

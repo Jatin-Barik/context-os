@@ -1,4 +1,5 @@
 import { getLocalModel, type LocalModelId } from '@/models/localModels';
+import { useModelManagerStore } from '@/store/modelManagerStore';
 import type { AIModel, AIModelMetadata } from './types';
 
 type ParsedPrompt = Record<string, string>;
@@ -118,16 +119,17 @@ export class HeuristicLocalAIModel implements AIModel {
 
   async metadata(): Promise<AIModelMetadata> {
     const model = getLocalModel(this.modelId);
+    const modelState = useModelManagerStore.getState().models[this.modelId];
     return {
       id: model.id,
       name: model.name,
       modality: model.modality,
       provider: 'local-heuristic',
-      status: 'Ready',
-      sizeMb: model.modality === 'vision' ? 1200 : 820,
-      ramUsageMb: model.modality === 'vision' ? 780 : 420,
-      downloadProgress: 1,
-      errors: []
+      status: modelState?.installed ? 'Ready' : 'Unavailable',
+      sizeMb: model.sizeMb,
+      ramUsageMb: model.ramUsageMb,
+      downloadProgress: modelState?.downloadProgress ?? 0,
+      errors: modelState?.installed ? [] : ['Model is not installed locally.']
     };
   }
 

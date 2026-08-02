@@ -7,6 +7,7 @@ interface ShortcutCardProps {
   detail: string;
   icon: ReactNode;
   accent?: 'cyan' | 'emerald' | 'amber';
+  onClick?: () => void;
 }
 
 const accentStyles: Record<NonNullable<ShortcutCardProps['accent']>, string> = {
@@ -15,13 +16,14 @@ const accentStyles: Record<NonNullable<ShortcutCardProps['accent']>, string> = {
   amber: 'from-amber-400/15 to-amber-400/5 text-amber-100'
 };
 
-export function ShortcutCard({ title, detail, icon, accent = 'cyan' }: ShortcutCardProps) {
+export function ShortcutCard({ title, detail, icon, accent = 'cyan', onClick }: ShortcutCardProps) {
   return (
     <motion.button
       type="button"
       whileHover={{ y: -2, scale: 1.01 }}
       whileTap={{ scale: 0.99 }}
       className="w-full text-left"
+      onClick={onClick}
     >
       <GlassCard className={`overflow-hidden bg-gradient-to-br ${accentStyles[accent]} p-4`}>
         <div className="flex items-center gap-3">

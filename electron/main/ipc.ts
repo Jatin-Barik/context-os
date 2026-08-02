@@ -4,11 +4,13 @@ import { appBridgeChannels } from '../../src/shared/bridge';
 import { registerCaptureHandlers } from './services/captureService';
 
 export function registerMainIpc(window: BrowserWindow): void {
+  const appVersion = '1.0.0';
+
   registerCaptureHandlers();
   ipcMain.handle(appBridgeChannels.appInfo, () => {
     return {
       name: 'ContextOS',
-      version: '0.1.0',
+      version: appVersion,
       platform: process.platform,
       electron: process.versions.electron,
       chrome: process.versions.chrome,

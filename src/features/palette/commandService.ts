@@ -2,7 +2,7 @@ import { useCommandPaletteStore } from './commandPaletteStore';
 import { useShellStore } from '@/store/shellStore';
 import { captureContext } from '@/services/context/contextCaptureService';
 import { createAIService } from '@/services/ai/aiService';
-import { createDefaultApplicationManager } from '@/integrations/core/ApplicationManager';
+import { getSharedApplicationManager } from '@/integrations/core/ApplicationManager';
 import type { ApplicationContextInput } from '@/integrations/core/ApplicationTypes';
 import type { ApplicationContext } from '@/integrations/core/ApplicationContext';
 
@@ -106,7 +106,7 @@ function toShellContextSnapshotFromApplication(context: ApplicationContext) {
 
 export function createCommandService(): CommandService {
   const aiService = createAIService();
-  const applicationManager = createDefaultApplicationManager();
+  const applicationManager = getSharedApplicationManager();
 
   const executeCommand = async (commandId: string): Promise<CommandExecutionOutcome> => {
     const shellStore = useShellStore.getState();

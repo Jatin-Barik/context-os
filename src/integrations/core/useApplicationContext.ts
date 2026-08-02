@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { AppInfo } from '@shared/bridge';
 import type { ContextSnapshot } from '@/store/shellStore';
-import { createDefaultApplicationManager } from './ApplicationManager';
+import { getSharedApplicationManager } from './ApplicationManager';
 import type { ApplicationContext, ApplicationContextInput } from './ApplicationContext';
 import type { InstalledAdapterSnapshot } from './ApplicationRegistry';
+import type { ApplicationCommand } from './ApplicationTypes';
 
 export interface UseApplicationContextInput {
   readonly context: ContextSnapshot | null;
@@ -14,6 +15,7 @@ export interface UseApplicationContextResult {
   readonly applicationContext: ApplicationContext | null;
   readonly loading: boolean;
   readonly registry: readonly InstalledAdapterSnapshot[];
+  readonly resolveCommands: (query: string) => readonly ApplicationCommand[];
 }
 
 function toInput(context: ContextSnapshot | null, appInfo: AppInfo | null): ApplicationContextInput {
@@ -44,7 +46,7 @@ function toInput(context: ContextSnapshot | null, appInfo: AppInfo | null): Appl
 }
 
 export function useApplicationContext(input: UseApplicationContextInput): UseApplicationContextResult {
-  const manager = useMemo(() => createDefaultApplicationManager(), []);
+  const manager = useMemo(() => getSharedApplicationManager(), []);
   const [applicationContext, setApplicationContext] = useState<ApplicationContext | null>(null);
   const [registry, setRegistry] = useState<readonly InstalledAdapterSnapshot[]>([]);
   const [loading, setLoading] = useState(false);
@@ -67,5 +69,7 @@ export function useApplicationContext(input: UseApplicationContextInput): UseApp
     };
   }, [input.appInfo, input.context, manager]);
 
-  return { applicationContext, loading, registry };
+  const resolveCommands = useCallback((query: string) => (applicationContext ? manager.resolveCommands(applicationContext, query) : []), [applicationContext, manager]);
+
+  return { applicationContext, loading, registry, resolveCommands };
 }

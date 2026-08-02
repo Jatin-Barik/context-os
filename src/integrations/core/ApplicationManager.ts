@@ -142,3 +142,13 @@ export function createDefaultApplicationManager(): ApplicationManager {
 
   return new ApplicationManager(registry);
 }
+
+let sharedApplicationManager: ApplicationManager | null = null;
+
+export function getSharedApplicationManager(): ApplicationManager {
+  if (!sharedApplicationManager) {
+    sharedApplicationManager = createDefaultApplicationManager();
+  }
+
+  return sharedApplicationManager;
+}

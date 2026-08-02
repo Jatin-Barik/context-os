@@ -44,42 +44,12 @@ export function CommandPalette({ onClose }: CommandPaletteProps) {
   const [ocrResult, setOcrResult] = useState<OcrResult | null>(null);
   const [captureStatus, setCaptureStatus] = useState<'idle' | 'capturing' | 'ready' | 'error'>('idle');
   const [captureError, setCaptureError] = useState<string | null>(null);
-  const { applicationContext } = useApplicationContext({
+  const { applicationContext, resolveCommands } = useApplicationContext({
     context: useShellStore((state) => state.recentContexts[0] ?? null),
     appInfo
   });
 
-  const commands = useMemo(() => {
-    if (!applicationContext) {
-      return [];
-    }
-
-    const normalized = query.trim().toLowerCase();
-    const baseCommands = [...applicationContext.supportedCommands];
-
-    if (!normalized) {
-      return baseCommands;
-    }
-
-    const terms = normalized.split(/\s+/).filter(Boolean);
-    return baseCommands.filter((command) => {
-      const haystack = [command.title, command.description, command.category, ...command.aliases].join(' ').toLowerCase();
-      return terms.every((term) => haystack.includes(term));
-    }).sort((left, right) => {
-      const leftScore = scoreCommand(left.title, left.description, left.category, left.aliases, normalized);
-      const rightScore = scoreCommand(right.title, right.description, right.category, right.aliases, normalized);
-      return rightScore - leftScore;
-    });
-  }, [applicationContext, query]);
-
-  function scoreCommand(title: string, description: string, category: string, aliases: readonly string[], queryText: string): number {
-    const haystack = [title, description, category, ...aliases].join(' ').toLowerCase();
-    if (haystack.includes(queryText)) {
-      return 20;
-    }
-
-    return queryText.split(/\s+/).filter(Boolean).reduce((score, term) => score + (haystack.includes(term) ? 4 : 0), 0);
-  }
+  const commands = useMemo(() => resolveCommands(query), [query, resolveCommands]);
 
   useEffect(() => {
     inputRef.current?.focus();
